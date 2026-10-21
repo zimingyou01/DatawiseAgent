@@ -3,10 +3,14 @@ import os.path
 import numpy as np
 import pandas as pd
 import argparse
+
+
 # 定义 SMAPE 计算函数
 def smape(y_true, y_pred):
-    return 100/len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred)))
-
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    denominator = np.abs(y_true) + np.abs(y_pred) + 1e-8  # 防止分母为 0
+    return 100 / len(y_true) * np.sum(2 * np.abs(y_pred - y_true) / denominator)
 
 
 parser = argparse.ArgumentParser()
@@ -23,6 +27,23 @@ args = parser.parse_args()
 
 answers = pd.read_csv(args.answer_file)
 predictions = pd.read_csv(args.predict_file)
+
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in answers.columns:
+    if col in predictions.columns and answers[col].is_unique and predictions[col].is_unique:
+        left = answers[col].sort_values().reset_index(drop=True)
+        right = predictions[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    answers = answers.sort_values(by=key, ignore_index=True)
+    predictions = predictions.sort_values(by=key, ignore_index=True)
 
 performance = smape(answers[args.value], predictions[args.value])
 

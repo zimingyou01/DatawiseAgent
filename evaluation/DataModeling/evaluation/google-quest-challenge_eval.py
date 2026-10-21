@@ -1,13 +1,9 @@
-
-
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
 from scipy.stats import spearmanr
 
-from sklearn.metrics import roc_auc_score
 
 parser = argparse.ArgumentParser()
 
@@ -22,6 +18,23 @@ args = parser.parse_args()
 
 actual = pd.read_csv(args.answer_file)
 submission = pd.read_csv(args.predict_file)
+
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in actual.columns:
+    if col in submission.columns and actual[col].is_unique and submission[col].is_unique:
+        left = actual[col].sort_values().reset_index(drop=True)
+        right = submission[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    actual = actual.sort_values(by=key, ignore_index=True)
+    submission = submission.sort_values(by=key, ignore_index=True)
 def mean_spearmanr(y_true, y_pred):
     """
     计算每列的Spearman's rank correlation coefficient，并取平均值
@@ -34,10 +47,11 @@ def mean_spearmanr(y_true, y_pred):
     return sum(correlations) / len(correlations)
 
 
-# 提取实际标签和预测结果
-actual_values = actual.iloc[:, 1:].values  # 假设实际标签文件中第一列是qa_id，后面是实际标签值
-predicted_values = submission.iloc[:, 1:].values  # 假设提交文件中第一列是qa_id，后面是预测标签值
-# 计算MAP@3
+# 目标列 = 除键列外的所有列，避免依赖提交文件的列顺序
+target_columns = [c for c in actual.columns if c != key] if key is not None else list(actual.columns[1:])
+actual_values = actual[target_columns].values
+predicted_values = submission[target_columns].values
+# 计算平均 Spearman 相关系数
 performance = mean_spearmanr(actual_values, predicted_values)
 
 

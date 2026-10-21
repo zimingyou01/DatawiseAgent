@@ -1,13 +1,9 @@
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_squared_log_error
-from sklearn.metrics import mean_absolute_error
 from math import sqrt
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import mean_squared_error
 
 parser = argparse.ArgumentParser()
 
@@ -16,21 +12,24 @@ parser.add_argument('--name', type=str, required=True)
 parser.add_argument('--answer_file', type=str, required=True)
 parser.add_argument('--predict_file', type=str, required=True)
 
-parser.add_argument('--value', type=str, default="Machine failure")
+parser.add_argument('--value', type=str, default="emission")
 
 args = parser.parse_args()
 
-answers = pd.read_csv( args.answer_file)
+answers = pd.read_csv(args.answer_file)
 predictions = pd.read_csv(args.predict_file)
 
-answers.sort_values(by=['ID_LAT_LON_YEAR_WEEK'])
-predictions.sort_values(by=['ID_LAT_LON_YEAR_WEEK'])
+answers = answers.sort_values(by=['ID_LAT_LON_YEAR_WEEK'], ignore_index=True)
+predictions = predictions.sort_values(by=['ID_LAT_LON_YEAR_WEEK'], ignore_index=True)
+
 # 提取预测值和实际标签
-predicted_values = predictions['emission'].values
-actual_values = answers['emission'].values  # 修改列名为answers
+predicted_values = predictions[args.value].values
+actual_values = answers[args.value].values
 
+# Compute RMSE
+rmse = sqrt(mean_squared_error(actual_values, predicted_values))
 
-smape = sqrt(mean_squared_error(actual_values, predicted_values))
-performance = smape
+performance = rmse
+
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:
     f.write(str(performance))

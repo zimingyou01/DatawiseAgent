@@ -21,8 +21,25 @@ def mean_absolute_error(y_true, y_pred):
     return np.mean(np.abs(y_pred - y_true))
 
 
-answers = pd.read_csv( args.answer_file)
-predictions = pd.read_csv( args.predict_file)
+answers = pd.read_csv(args.answer_file)
+predictions = pd.read_csv(args.predict_file)
+
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in answers.columns:
+    if col in predictions.columns and answers[col].is_unique and predictions[col].is_unique:
+        left = answers[col].sort_values().reset_index(drop=True)
+        right = predictions[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    answers = answers.sort_values(by=key, ignore_index=True)
+    predictions = predictions.sort_values(by=key, ignore_index=True)
 
 performance = mean_absolute_error(answers[args.value], predictions[args.value])
 

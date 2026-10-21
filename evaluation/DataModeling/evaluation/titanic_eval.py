@@ -1,8 +1,5 @@
-
-
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
 
@@ -23,12 +20,11 @@ args = parser.parse_args()
 actual = pd.read_csv(args.answer_file)
 submission = pd.read_csv(args.predict_file)
 
-actual.sort_values(by=['PassengerId'])
-submission.sort_values(by=['PassengerId'])
+actual = actual.sort_values(by=['PassengerId'], ignore_index=True)
+submission = submission.sort_values(by=['PassengerId'], ignore_index=True)
 
-# 计算平均错误率
+# Compute Accuracy
 performance = accuracy_score(actual[args.value], submission[args.value])
-
 
 
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:

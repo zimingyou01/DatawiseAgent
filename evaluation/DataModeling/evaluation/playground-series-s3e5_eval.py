@@ -1,12 +1,9 @@
-
-
 import os.path
 
 import numpy as np
 import pandas as pd
 import argparse
 
-from sklearn.metrics import roc_auc_score
 
 parser = argparse.ArgumentParser()
 
@@ -23,8 +20,8 @@ args = parser.parse_args()
 actual = pd.read_csv(args.answer_file)
 submission = pd.read_csv(args.predict_file)
 
-actual.sort_values(by=['Id'])
-submission.sort_values(by=['Id'])
+actual = actual.sort_values(by=['Id'], ignore_index=True)
+submission = submission.sort_values(by=['Id'], ignore_index=True)
 
 def quadratic_weighted_kappa(actual, predicted, N):
     O = np.zeros((N, N), dtype=int)
@@ -52,9 +49,8 @@ def quadratic_weighted_kappa(actual, predicted, N):
 
     return 1 - num / den
 
-# 计算平均错误率
+# Compute Quadratic Weighted Kappa
 performance = quadratic_weighted_kappa(actual[args.value], submission[args.value], 10)
-
 
 
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:
