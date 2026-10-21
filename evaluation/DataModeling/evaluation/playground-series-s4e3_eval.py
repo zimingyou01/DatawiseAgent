@@ -1,20 +1,8 @@
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
-from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
-
-
-# 计算多类对数损失
-def multiclass_logloss(actuals, predictions):
-    epsilon = 1e-15  # 避免对数运算中的数值问题
-    predictions = np.clip(predictions, epsilon, 1 - epsilon)  # 限制预测概率的范围，防止对数为无穷
-    predictions /= predictions.sum(axis=1)[:, np.newaxis]  # 归一化确保总和为1
-    log_pred = np.log(predictions)
-    loss = -np.sum(actuals * log_pred) / len(actuals)
-    return loss
 
 
 parser = argparse.ArgumentParser()
@@ -24,27 +12,36 @@ parser.add_argument('--name', type=str, required=True)
 parser.add_argument('--answer_file', type=str, required=True)
 parser.add_argument('--predict_file', type=str, required=True)
 
-parser.add_argument('--value', type=str, default="NObeyesdad")
+parser.add_argument('--value', type=str, default="Pastry,Z_Scratch,K_Scatch,Stains,Dirtiness,Bumps,Other_Faults")
 
 args = parser.parse_args()
 
 actual = pd.read_csv(args.answer_file)
-submission = pd.read_csv( args.predict_file)
+submission = pd.read_csv(args.predict_file)
 
-# 定义要计算的类别
-categories = ['Pastry', 'Z_Scratch', 'K_Scatch', 'Stains', 'Dirtiness', 'Bumps', 'Other_Faults']
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in actual.columns:
+    if col in submission.columns and actual[col].is_unique and submission[col].is_unique:
+        left = actual[col].sort_values().reset_index(drop=True)
+        right = submission[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    actual = actual.sort_values(by=key, ignore_index=True)
+    submission = submission.sort_values(by=key, ignore_index=True)
 
-# 提取数据并计算每个类别的 ROC AUC 分数
-auc_scores = {}
-for category in categories:
-    y_true = actual[category].values
-    y_pred = submission[category].values
-    auc_scores[category] = roc_auc_score(y_true, y_pred)
+# 逐列计算 ROC AUC，再取平均
+target_columns = [c.strip() for c in args.value.split(",") if c.strip()]
 
-# 计算平均 AUC 分数
-performance = sum(auc_scores.values()) / len(auc_scores)
+performance = sum(
+    roc_auc_score(actual[c], submission[c]) for c in target_columns
+) / len(target_columns)
 
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:
     f.write(str(performance))
-
-

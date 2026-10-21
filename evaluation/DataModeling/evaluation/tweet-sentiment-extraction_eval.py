@@ -1,8 +1,5 @@
-
-
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
 
@@ -14,9 +11,10 @@ parser.add_argument('--name', type=str, required=True)
 parser.add_argument('--answer_file', type=str, required=True)
 parser.add_argument('--predict_file', type=str, required=True)
 
-parser.add_argument('--value', type=str, default="yield")
+parser.add_argument('--value', type=str, default="selected_text")
 
 args = parser.parse_args()
+
 
 # 计算 Jaccard 相似度
 def jaccard(str1, str2):
@@ -26,21 +24,32 @@ def jaccard(str1, str2):
     return float(len(c)) / (len(a) + len(b) - len(c))
 
 
-
 answers = pd.read_csv(args.answer_file)
 predictions = pd.read_csv(args.predict_file)
 
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in answers.columns:
+    if col in predictions.columns and answers[col].is_unique and predictions[col].is_unique:
+        left = answers[col].sort_values().reset_index(drop=True)
+        right = predictions[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    answers = answers.sort_values(by=key, ignore_index=True)
+    predictions = predictions.sort_values(by=key, ignore_index=True)
+
 # 提取数据
-y_true = answers['selected_text'].values
-y_pred = predictions['selected_text'].values
+y_true = answers[args.value].values
+y_pred = predictions[args.value].values
 
 n = len(answers)
 performance = sum(jaccard(y_true[i], y_pred[i]) for i in range(n)) / n
 
-
-
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:
     f.write(str(performance))
-
-
-

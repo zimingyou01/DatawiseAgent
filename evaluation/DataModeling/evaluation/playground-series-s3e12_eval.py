@@ -1,8 +1,5 @@
-
-
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
 
@@ -23,12 +20,11 @@ args = parser.parse_args()
 actual = pd.read_csv(args.answer_file)
 submission = pd.read_csv(args.predict_file)
 
-actual.sort_values(by=['id'])
-submission.sort_values(by=['id'])
+actual = actual.sort_values(by=['id'], ignore_index=True)
+submission = submission.sort_values(by=['id'], ignore_index=True)
 
-# 计算平均错误率
+# Compute ROC AUC
 performance = roc_auc_score(actual[args.value], submission[args.value])
-
 
 
 with open(os.path.join(args.path, args.name, "result.txt"), "w") as f:

@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import argparse
 
-from sklearn.metrics import roc_auc_score
 
 parser = argparse.ArgumentParser()
 
@@ -35,8 +34,8 @@ def mean_column_wise_rmsle(true_df, pred_df):
 
 answers = pd.read_csv(args.answer_file)
 predictions = pd.read_csv(args.predict_file)
-answers.sort_values(by=["date_time"])
-predictions.sort_values(by=['date_time'])
+answers = answers.sort_values(by=["date_time"], ignore_index=True)
+predictions = predictions.sort_values(by=['date_time'], ignore_index=True)
 
 
 performance = mean_column_wise_rmsle(answers, predictions)

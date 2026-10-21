@@ -1,19 +1,8 @@
 import os.path
 
-import numpy as np
 import pandas as pd
 import argparse
 from sklearn.metrics import accuracy_score
-
-
-# 计算多类对数损失
-def multiclass_logloss(actuals, predictions):
-    epsilon = 1e-15  # 避免对数运算中的数值问题
-    predictions = np.clip(predictions, epsilon, 1 - epsilon)  # 限制预测概率的范围，防止对数为无穷
-    predictions /= predictions.sum(axis=1)[:, np.newaxis]  # 归一化确保总和为1
-    log_pred = np.log(predictions)
-    loss = -np.sum(actuals * log_pred) / len(actuals)
-    return loss
 
 
 parser = argparse.ArgumentParser()
@@ -30,6 +19,23 @@ args = parser.parse_args()
 
 answers = pd.read_csv(args.answer_file)
 predictions = pd.read_csv(args.predict_file)
+
+# Align rows on the submission key: the column whose values are unique and
+# identical in both files, so sorting both by it pairs each row with its answer
+key = None
+for col in answers.columns:
+    if col in predictions.columns and answers[col].is_unique and predictions[col].is_unique:
+        left = answers[col].sort_values().reset_index(drop=True)
+        right = predictions[col].sort_values().reset_index(drop=True)
+        numeric = pd.to_numeric(left, errors="coerce")
+        if left.equals(right) or (
+            numeric.notna().all() and numeric.equals(pd.to_numeric(right, errors="coerce"))
+        ):
+            key = col
+            break
+if key is not None:
+    answers = answers.sort_values(by=key, ignore_index=True)
+    predictions = predictions.sort_values(by=key, ignore_index=True)
 
 performance = accuracy_score(answers[args.value], predictions[args.value])
 
